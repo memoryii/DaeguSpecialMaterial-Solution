@@ -2,11 +2,10 @@
 
 제공받은 MES 엑셀과 화면 전사 CSV를 읽어 LOT별 수량·불량 현황과 연결 가능성을 점검하는 Jupyter Notebook입니다.
 
-## 회사 담당자 실행
+## 시작하기
 
 운영자가 서버를 시작한 후 전달하는 Notebook 주소를 Windows의 Edge 또는 Chrome에서 엽니다. 처음 접속할 때 운영자가 별도로 전달한 접속 토큰을 입력합니다. `Daegu_MES_quality_analysis.ipynb`에서 **Run → Run All Cells**를 누르면 위에서 아래까지 분석을 실행합니다. PC에 Python이나 Git을 설치할 필요는 없습니다.
 
-GitHub 화면은 코드 열람용입니다. 실제 실행은 별도 JupyterLab 서버에서 합니다. 이 저장소에 준비된 코드가 있다는 사실만으로 공개 실행 서버가 운영되는 것은 아닙니다. ngrok 주소는 서버 실행과 연결 성공 후 생성됩니다.
 
 ## 구현 범위
 
