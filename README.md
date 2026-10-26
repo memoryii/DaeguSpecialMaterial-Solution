@@ -1,6 +1,6 @@
 # 대구특수금속 MES LOT 분석
 
-제공받은 MES 엑셀과 화면 전사 CSV를 읽어 LOT별 수량·불량 현황과 연결 가능성을 점검하는 Jupyter Notebook입니다. GPU는 필요하지 않습니다.
+제공받은 MES 엑셀과 화면 전사 CSV를 읽어 LOT별 수량·불량 현황과 연결 가능성을 점검하는 Jupyter Notebook입니다.
 
 ## 회사 담당자 실행
 
