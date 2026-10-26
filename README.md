@@ -5,7 +5,7 @@
 ## 시작하기
 
 1. 운영자가 서버를 시작한 후 전달하는 Notebook 주소를 Windows의 Edge 또는 Chrome에서 엽니다.
-2. 처음 접속할 때 운영자가 별도로 전달한 접속 토큰을 입력합니다.
+2. 별도 토큰 입력은 필요 없습니다.
 3. `Daegu_MES_quality_analysis.ipynb`에서 **Run → Run All Cells**를 누르면 위에서 아래까지 분석을 실행합니다.
 4. PC에 Python이나 Git을 설치할 필요는 없습니다.
 
