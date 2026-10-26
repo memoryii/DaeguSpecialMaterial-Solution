@@ -31,13 +31,7 @@
 - `~/daegu_mes_private/outputs/`: 매 실행의 분석 결과.
 - `~/daegu_mes_private/runtime/`: Jupyter 실행 사본·접속 토큰·로그.
 
-`serve.py`는 Notebook을 비공개 작업 폴더로 복사해 실행합니다. GitHub용 원본 Notebook에 회사 데이터 출력이 자동 저장되는 것을 피하기 위한 구성입니다. 공개 Notebook을 저장소 안에서 직접 실행·저장한 경우에는 업로드 전에 실행 결과를 비워야 합니다.
 
-공개본 검사:
-
-```bash
-python3 scripts/check_public.py
-```
 
 ## 문서
 
