@@ -4,10 +4,12 @@
 
 ## 시작하기
 
-1. 운영자가 서버를 시작한 후 전달하는 Notebook 주소를 Windows의 Edge 또는 Chrome에서 엽니다.
-2. 별도 토큰 입력은 필요 없습니다.
-3. `Daegu_MES_quality_analysis.ipynb`에서 **Run → Run All Cells**를 누르면 위에서 아래까지 분석을 실행합니다.
-4. PC에 Python이나 Git을 설치할 필요는 없습니다.
+1. 운영자가 전달한 자동 로그인 링크를 Windows의 Edge 또는 Chrome에서 엽니다.
+2. 왼쪽 **data/**에서 전사 CSV와 화면 이미지를 확인합니다.
+3. `Daegu_MES_quality_analysis.ipynb`에서 **Run → Run All Cells**를 누릅니다. 1~7단계가 순서대로 실행됩니다.
+4. 마지막 셀의 **결과 폴더 열기** 또는 왼쪽 **outputs/**에서 결과를 확인합니다.
+
+자동 로그인 링크를 사용하면 토큰을 따로 입력하지 않아도 됩니다. PC에 Python이나 Git을 설치할 필요는 없습니다.
 
 
 ## 구현 범위
@@ -24,12 +26,14 @@
 현재 수령 자료의 기초 분석을 재현하는 구현입니다. 공정 사이의 모든 LOT 계보를 자동 복원하거나, 최종검사 불량을 선행 LOT에 임의 배분하거나, 불량 예측모델을 학습하지 않습니다. 자료의 범위와 추가 요청사항은 Notebook 실행 결과에 함께 표시합니다.
 
 
-## 코드와 회사 데이터 분리
+## Jupyter 폴더
 
-- 저장소: 실행 결과가 비어 있는 Notebook, 서버 실행 코드, 설치·사용 안내.
-- `~/daegu_mes_private/inputs/`: 원본 엑셀·화면 전사 CSV·이미지·분석 설정.
-- `~/daegu_mes_private/outputs/`: 매 실행의 분석 결과.
-- `~/daegu_mes_private/runtime/`: Jupyter 실행 사본·접속 토큰·로그.
+- **data/**: 원본 엑셀과 입력 설정.
+- **data/curated/**: 전사 CSV와 컬럼 매핑.
+- **data/source_images/**: 전사 근거 화면 이미지.
+- **outputs/**: 실행별 결과 CSV·그림·JSON.
+
+회사 입력자료와 실행 결과는 서버에 보관하며 GitHub에 포함하지 않습니다. 세부 분석 코드는 `src/`에 있습니다.
 
 
 

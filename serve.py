@@ -16,6 +16,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import shutil
 import signal
 import socket
 import subprocess
@@ -56,14 +57,14 @@ def arguments(argv=None):
         description="개인 폴더의 MES 데이터를 JupyterLab에서 실행합니다."
     )
     parser.add_argument("--local-only", action="store_true", help="ngrok 없이 localhost에서만 실행")
-    parser.add_argument("--port", type=int, default=8888)
+    parser.add_argument("--port", type=int, default=8888, help="로컬 포트. 0이면 사용 가능한 포트를 자동 선택")
     parser.add_argument("--domain", help="계정에 연결된 ngrok 도메인 (https://와 경로 제외)")
     parser.add_argument("--data-dir", type=Path, default=PRIVATE_HOME / "inputs")
     parser.add_argument("--output-dir", type=Path, default=PRIVATE_HOME / "outputs")
     parser.add_argument("--state-dir", type=Path, default=PRIVATE_HOME / "runtime")
     args = parser.parse_args(argv)
-    if not 1 <= args.port <= 65535:
-        parser.error("--port는 1~65535 범위여야 합니다.")
+    if not 0 <= args.port <= 65535:
+        parser.error("--port는 0~65535 범위여야 합니다. 0은 자동 선택입니다.")
     if args.local_only and args.domain:
         parser.error("--domain은 ngrok 모드에서만 사용할 수 있습니다.")
     if args.domain:
@@ -171,6 +172,70 @@ def ensure_inputs(args):
         )
 
 
+def prepare_data_links(work: Path, data: Path, outputs: Path):
+    """Expose only the selected data/result folders in the authenticated browser."""
+    links = ((work / "data", data), (work / "outputs", outputs))
+    for link, target in links:
+        if link.is_symlink():
+            if link.resolve() != target.resolve():
+                raise LaunchError(
+                    f"기존 {link.name}/ 연결이 다른 폴더를 가리킵니다: {link}\n"
+                    "기존 파일을 보존하기 위해 변경하지 않았습니다. 해당 연결을 먼저 확인하세요."
+                )
+        elif link.exists():
+            raise LaunchError(
+                f"{link}에 파일 또는 폴더가 이미 있습니다. 기존 자료를 덮어쓰지 않습니다.\n"
+                "기존 자료를 별도 위치에 보관한 뒤 이 경로를 비우거나 다른 --state-dir를 지정하세요."
+            )
+    for link, target in links:
+        if not link.is_symlink():
+            try:
+                link.symlink_to(target, target_is_directory=True)
+            except OSError as exc:
+                raise LaunchError(f"브라우저용 {link.name}/ 폴더 연결을 만들 수 없습니다: {exc}") from exc
+
+
+def backup_directory(state: Path, run_id: str):
+    directory = state / "backups" / run_id
+    private_directory(directory)
+    return directory
+
+
+def prepare_source(work: Path, state: Path, run_id: str):
+    """Keep runnable code beside the notebook; archive the previous private copy."""
+    source = REPOSITORY / "src"
+    module = source / "mes_analysis.py"
+    if not module.is_file() or module.is_symlink():
+        raise LaunchError(f"분석 모듈이 없습니다: {module}. 최신 공개 코드를 설치하세요.")
+    destination = work / "src"
+    if destination.is_symlink() or (destination.exists() and not destination.is_dir()):
+        raise LaunchError(f"작업 src 경로가 일반 폴더가 아닙니다: {destination}")
+    staging_parent = state / "staging"
+    private_directory(staging_parent)
+    staged = staging_parent / (run_id + "_src")
+    private_directory(staged)
+    previous = None
+    try:
+        for name in ("__init__.py", "mes_analysis.py"):
+            path = source / name
+            if path.is_symlink():
+                raise LaunchError(f"공개 분석 소스는 일반 파일이어야 합니다: {path}")
+            if path.is_file():
+                private_write(staged / name, path.read_text(encoding="utf-8"))
+        if destination.exists():
+            previous = backup_directory(state, run_id) / "src"
+            destination.rename(previous)
+        try:
+            staged.rename(destination)
+        except OSError:
+            if previous is not None:
+                previous.rename(destination)
+            raise
+    finally:
+        if staged.exists():
+            shutil.rmtree(staged)
+
+
 def prepare_notebook(work: Path, state: Path, run_id: str):
     source = REPOSITORY / NOTEBOOK_NAME
     if not source.is_file():
@@ -186,7 +251,7 @@ def prepare_notebook(work: Path, state: Path, run_id: str):
         notebook.get("metadata", {}).pop("widgets", None)
         notebook.setdefault("metadata", {})["kernelspec"] = {
             "name": KERNEL_NAME,
-            "display_name": "Python (MES private)",
+            "display_name": "Python (MES)",
             "language": "python",
         }
     except (ValueError, TypeError, AttributeError) as exc:
@@ -195,9 +260,8 @@ def prepare_notebook(work: Path, state: Path, run_id: str):
     if destination.exists():
         if destination.is_symlink() or not destination.is_file():
             raise LaunchError(f"작업 노트북 경로가 일반 파일이 아닙니다: {destination}")
-        backups = state / "backups"
-        private_directory(backups)
-        private_write(backups / f"{run_id}_{NOTEBOOK_NAME}", destination.read_text(encoding="utf-8"))
+        backups = backup_directory(state, run_id)
+        private_write(backups / NOTEBOOK_NAME, destination.read_text(encoding="utf-8"))
     private_write(destination, json.dumps(notebook, ensure_ascii=False, indent=1) + "\n")
 
 
@@ -207,7 +271,7 @@ def prepare_kernel(jupyter_data: Path):
     private_directory(kernel_dir)
     specification = {
         "argv": [sys.executable, "-m", "ipykernel_launcher", "-f", "{connection_file}"],
-        "display_name": "Python (MES private)",
+        "display_name": "Python (MES)",
         "language": "python",
     }
     private_write(kernel_dir / "kernel.json", json.dumps(specification, indent=2) + "\n")
@@ -236,6 +300,10 @@ def write_config(path: Path, args, work: Path, token_file: Path):
         "PasswordIdentityProvider.password_required": False,
         "PasswordIdentityProvider.allow_password_change": False,
         "MappingKernelManager.default_kernel_name": KERNEL_NAME,
+        # The authenticated ContentsManager already supports our explicit data/
+        # and outputs/ links. Use the matching authenticated file handler for
+        # images/downloads; StaticFileHandler rejects all links outside root_dir.
+        "FileContentsManager.files_handler_class": "jupyter_server.files.handlers.FilesHandler",
     }
     lines = ["from pathlib import Path", "c = get_config()"]
     lines.extend(f"c.{key} = {value!r}" for key, value in settings.items())
@@ -280,6 +348,10 @@ def await_jupyter(process, base: str, token: str, log_path: Path):
                 )
                 if not denied:
                     raise LaunchError("인증 없는 접근이 차단되지 않아 서버 공개를 중단합니다.")
+                for directory in ("data", "outputs"):
+                    folder_status, _, folder_body = request(base, f"/api/contents/{directory}?content=0", token)
+                    if folder_status != 200 or json.loads(folder_body).get("type") != "directory":
+                        raise LaunchError(f"Jupyter에서 {directory}/ 폴더를 열 수 없습니다. 경로와 파일 권한을 확인하세요.")
                 lab_status, _, _ = request(base, f"/lab/tree/{NOTEBOOK_NAME}", token)
                 if lab_status != 200:
                     raise LaunchError(f"JupyterLab 화면 준비 확인 실패 (HTTP {lab_status}).")
@@ -315,6 +387,16 @@ def stop_jupyter(process, base: str, token: str):
         process.wait(timeout=5)
 
 
+def process_start_ticks(pid: int):
+    """Linux PID-reuse check for a scoped restart, without reading process secrets."""
+    try:
+        # /proc/PID/stat's command field may itself contain spaces or parentheses.
+        fields = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
+        return fields[19]  # starttime, field 22 (the remaining fields start at 3).
+    except (OSError, IndexError):
+        return None
+
+
 def run(args):
     ensure_inputs(args)
     if importlib.util.find_spec("jupyterlab") is None:
@@ -333,13 +415,20 @@ def run(args):
 
 
 def run_locked(args):
-    # Check the fixed port first. Jupyter also has port_retries=0, preventing a
-    # tunnel from accidentally forwarding to a different service on this port.
+    # A zero port requests an available loopback port from the operating system.
+    # REUSEADDR allows a stopped listener's TIME_WAIT connections while still
+    # rejecting an active listener. Jupyter itself also has port_retries=0.
+    requested_port = args.port
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             probe.bind(("127.0.0.1", args.port))
+            args.port = probe.getsockname()[1]
         except OSError as exc:
-            raise LaunchError(f"127.0.0.1:{args.port} 포트를 사용할 수 없습니다. 다른 --port를 지정하세요.") from exc
+            raise LaunchError(
+                f"127.0.0.1:{args.port} 포트를 사용할 수 없습니다 "
+                f"(errno={exc.errno}: {exc.strerror}). --port 0으로 빈 포트를 자동 선택할 수 있습니다."
+            ) from exc
     state = args.state_dir
     work = state / "work"
     runtime = state / "jupyter_runtime"
@@ -348,6 +437,8 @@ def run_locked(args):
     for path in (work, runtime, config_dir, jupyter_data, state / "ipython"):
         private_directory(path)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + secrets.token_hex(3)
+    prepare_data_links(work, args.data_dir, args.output_dir)
+    prepare_source(work, state, run_id)
     prepare_notebook(work, state, run_id)
     prepare_kernel(jupyter_data)
     token = secrets.token_urlsafe(32)
@@ -380,7 +471,14 @@ def run_locked(args):
     ngrok = None
     listener_url = None
     exit_code = 1
-    status = {"status": "starting", "mode": "local" if args.local_only else "ngrok", "port": args.port}
+    status = {
+        "status": "starting", "mode": "local" if args.local_only else "ngrok", "port": args.port,
+        "requested_port": requested_port, "run_id": run_id,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "launcher_pid": os.getpid(), "launcher_start_ticks": process_start_ticks(os.getpid()),
+        "repository_dir": str(REPOSITORY), "python_executable": sys.executable,
+        "work_dir": str(work), "data_dir": str(args.data_dir), "output_dir": str(args.output_dir),
+    }
 
     def save_status():
         private_write(status_path, json.dumps(status, ensure_ascii=False, indent=2) + "\n")
@@ -406,6 +504,8 @@ def run_locked(args):
                 start_new_session=os.name == "posix",
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
             )
+            status.update(jupyter_pid=process.pid, jupyter_start_ticks=process_start_ticks(process.pid))
+            save_status()
             await_jupyter(process, base, token, log_path)
             print("localhost 준비 확인: 인증된 Notebook API와 Lab 화면 응답 정상; 인증 없는 API 접근 차단.", flush=True)
             public_base = base
@@ -428,7 +528,10 @@ def run_locked(args):
                     log.flush()
                     raise LaunchError(f"ngrok 연결에 실패했습니다. 계정·도메인·네트워크를 확인하세요. 개인 로그: {log_path}") from exc
             url = public_base + f"/lab/tree/{NOTEBOOK_NAME}"
-            status.update(status="ready", notebook_url=url, token_file=str(token_file), log_file=str(log_path), jupyter_pid=process.pid)
+            status.update(
+                status="ready", notebook_url=url, token_file=str(token_file), log_file=str(log_path),
+                jupyter_pid=process.pid, jupyter_start_ticks=process_start_ticks(process.pid),
+            )
             save_status()
             print(f"{'로컬' if args.local_only else '공개'} Notebook URL: {url}", flush=True)
             print(f"로그인 토큰 파일: {token_file}", flush=True)

@@ -11,7 +11,8 @@ ALLOWED = {
     '.gitignore', 'README.md', 'requirements.txt', 'requirements-tested.txt',
     'Daegu_MES_quality_analysis.ipynb', 'serve.py', 'setup.sh', 'start.sh',
     'scripts/check_public.py', 'docs/user-guide.md', 'docs/server-setup.md',
-    'docs/data-guide.md',
+    'docs/data-guide.md', 'src/__init__.py', 'src/mes_analysis.py',
+    'scripts/update_deployment.py',
 }
 
 def check():

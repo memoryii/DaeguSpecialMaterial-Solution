@@ -10,6 +10,10 @@
 !/start.sh
 !/scripts/
 !/scripts/check_public.py
+!/scripts/update_deployment.py
+!/src/
+!/src/__init__.py
+!/src/mes_analysis.py
 !/docs/
 !/docs/user-guide.md
 !/docs/server-setup.md
