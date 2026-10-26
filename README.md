@@ -21,33 +21,6 @@
 
 현재 수령 자료의 기초 분석을 재현하는 구현입니다. 공정 사이의 모든 LOT 계보를 자동 복원하거나, 최종검사 불량을 선행 LOT에 임의 배분하거나, 불량 예측모델을 학습하지 않습니다. 자료의 범위와 추가 요청사항은 Notebook 실행 결과에 함께 표시합니다.
 
-## 운영자 빠른 시작
-
-Python 3.10 이상을 사용하는 Linux 서버에서 실행합니다.
-
-```bash
-git clone https://github.com/memoryii/DaeguSpecialMaterial-Solution.git
-cd DaeguSpecialMaterial-Solution
-bash setup.sh
-```
-
-별도로 전달받은 비공개 입력 폴더를 `~/daegu_mes_private/inputs/`에 준비합니다. 필요한 파일명과 데이터별 설정은 그 폴더의 `analysis_config.json`에 있습니다. GitHub에서 원본 파일을 다운로드하는 구조가 아닙니다.
-
-```bash
-# 로컬 접속으로 먼저 확인
-bash start.sh --local-only
-```
-
-ngrok 계정의 인증 토큰은 서버 터미널에서 비공개로 설정합니다. 토큰을 코드·문서·채팅에 붙이지 않습니다.
-
-```bash
-read -rsp 'ngrok authtoken: ' NGROK_AUTHTOKEN
-printf '\n'
-export NGROK_AUTHTOKEN
-bash start.sh
-```
-
-실행 후 출력되는 `https://.../lab/tree/Daegu_MES_quality_analysis.ipynb` 주소와 별도 접속 토큰을 회사 담당자에게 전달합니다. 기존 GSB 주소를 재사용하거나 변경하지 않습니다.
 
 ## 코드와 회사 데이터 분리
 
@@ -67,9 +40,4 @@ python3 scripts/check_public.py
 ## 문서
 
 - [회사 담당자 사용 안내](docs/user-guide.md)
-- [서버와 ngrok 실행 안내](docs/server-setup.md)
 - [입력 자료와 추가 데이터](docs/data-guide.md)
-
-## 참고 문서
-
-서버 연결은 [ngrok Python SDK](https://ngrok.github.io/ngrok-python/)와 [Jupyter Server 인증](https://jupyter-server.readthedocs.io/en/latest/operators/security.html)의 공개 API를 사용합니다. Jupyter 접속자는 서버 계정 권한으로 코드를 실행할 수 있으므로 접속 주소와 인증 토큰은 승인된 담당자에게만 전달합니다.
