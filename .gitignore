@@ -1,0 +1,16 @@
+# Only source files in the reviewed public bundle may be committed.
+*
+!/.gitignore
+!/README.md
+!/requirements.txt
+!/requirements-tested.txt
+!/Daegu_MES_quality_analysis.ipynb
+!/serve.py
+!/setup.sh
+!/start.sh
+!/scripts/
+!/scripts/check_public.py
+!/docs/
+!/docs/user-guide.md
+!/docs/server-setup.md
+!/docs/data-guide.md
